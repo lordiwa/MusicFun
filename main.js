@@ -89,14 +89,135 @@ function updateBars() {
     });
 }
 
+const moon = {
+    x: Math.random() * canvas.width,
+    y: Math.random() * (canvas.height / 2), // Ensure the moon is in the top portion
+    size: Math.random() * 50 + 30, // Random size between 30 and 80 (3 times bigger minimum size)
+    visibility: 0, // Initial visibility
+    craters: [] // Array to store craters
+};
+
+// Generate craters once
+const numCraters = Math.floor(moon.size / 5) + 20; // Increase the number of craters
+for (let i = 0; i < numCraters; i++) {
+    const craterX = (Math.random() - 0.5) * moon.size * 2;
+    const craterY = (Math.random() - 0.5) * moon.size * 2;
+    const craterSize = Math.random() * moon.size * 0.5; // Increase crater size
+
+    // Ensure the crater is within the moon's boundary and not too close to others
+    if (Math.sqrt(craterX ** 2 + craterY ** 2) + craterSize <= moon.size) {
+        moon.craters.push({ x: craterX, y: craterY, size: craterSize });
+    }
+}
+
+
+function drawMoon(songProgress) {
+    if (songProgress < 0.10) {
+        moon.visibility = 1; // Increase visibility from 0 to 1 faster
+    }
+
+    ctx.save();
+    ctx.fillStyle = `rgba(255, 255, 255, ${moon.visibility * 0.8})`;
+    ctx.shadowColor = `rgba(255, 255, 255, ${moon.visibility * 0.8})`;
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(moon.x, moon.y, moon.size, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw craters as amorphous spots
+    moon.craters.forEach(crater => {
+        const craterX = moon.x + crater.x;
+        const craterY = moon.y + crater.y;
+
+        ctx.fillStyle = `rgba(200, 200, 200, ${moon.visibility * 0.8})`;
+        drawAmorphousSpot(craterX, craterY, crater.size);
+
+        // Draw the darker center spot
+        ctx.fillStyle = `rgba(150, 150, 150, ${moon.visibility * 0.8})`;
+        drawAmorphousSpot(craterX, craterY, crater.size * 0.5);
+    });
+
+    ctx.restore();
+}
+
+function drawAmorphousSpot(x, y, size) {
+    const numPoints = Math.floor(Math.random() * 5) + 5; // Random number of points for the polyhedron
+    const angleStep = (Math.PI * 2) / numPoints;
+
+    ctx.beginPath();
+    for (let i = 0; i < numPoints; i++) {
+        const angle = i * angleStep;
+        const radius = size * (0.7 + Math.random() * 0.6); // Randomize radius for amorphous shape
+        const pointX = x + Math.cos(angle) * radius;
+        const pointY = y + Math.sin(angle) * radius;
+        if (i === 0) {
+            ctx.moveTo(pointX, pointY);
+        } else {
+            ctx.lineTo(pointX, pointY);
+        }
+    }
+    ctx.closePath();
+    ctx.fill();
+}
+
+
+const stars = [];
+
+function createStar() {
+    if (stars.length >= 200) return; // Limit the number of stars to 120
+
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * canvas.height;
+    const size = Math.random() * 2 + 1;
+    const maxBrightness = Math.random() * 0.5 + 0.5; // Max brightness between 0.5 and 1
+    stars.push({ x, y, size, brightness: 0, maxBrightness });
+}
+
+function updateStars(songProgress) {
+    stars.forEach(star => {
+        star.brightness = Math.min(star.maxBrightness, star.brightness + songProgress * star.maxBrightness);
+    });
+}
+
+function drawStars() {
+    stars.forEach(star => {
+        ctx.save();
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness})`;
+        ctx.shadowColor = `rgba(255, 255, 255, ${star.brightness})`;
+        ctx.shadowBlur = 5;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    });
+}
+
 function createFallingShape(speedMultiplier, sizeMultiplier, amplitudeRatio) {
     const size = (Math.random() * 4) * sizeMultiplier; // Adjust size based on amplitude
     const x = Math.random() * canvas.width;
     const y = 0;
-    const color = getColorFromAmplitude(amplitudeRatio); // Use the color gradient
-    const speedY = (Math.random() * 3) * speedMultiplier;
 
-    fallingShapes.push({ x, y, size, color, speedY });
+    // Determine color based on size
+    let color;
+    if (size < 1.5) {
+        color = 'blue'; // Small shapes
+    } else if (size < 3) {
+        color = 'violet'; // Mid shapes
+    } else {
+        color = 'indigo'; // Big shapes
+    }
+
+    const speedY = (Math.random() * 3) * speedMultiplier;
+    const rotation = Math.random() * Math.PI * 2; // Initial rotation
+    const rotationSpeed = (Math.random() - 0.5) * 0.1; // Rotation speed
+
+    // Determine diagonal movement
+    const angle = (Math.random() - 0.5) * (Math.PI / 6); // Random angle between -30 and 30 degrees
+    const speedX = speedY * Math.tan(angle); // Calculate horizontal speed based on angle
+
+    fallingShapes.push({ x, y, size, color, speedX, speedY, rotation, rotationSpeed });
 }
 function createParticles(parent, angle) {
     const numParticles = Math.floor(Math.random() * 5) + 5;
@@ -117,7 +238,9 @@ const MAX_FALLING_SHAPES = 900; // Define the maximum number of falling shapes
 
 function updateFallingShapes() {
     fallingShapes.forEach((shape, index) => {
-        shape.y += shape.speedY; // Update shape position
+        shape.x += shape.speedX; // Update horizontal position
+        shape.y += shape.speedY; // Update vertical position
+
         // Check for collision with bars
         bars.forEach(bar => {
             if (shape.x > bar.x && shape.x < bar.x + bar.width && shape.y + shape.size > bar.y) {
@@ -268,8 +391,17 @@ function renderBars() {
 
 function renderFallingShapes() {
     fallingShapes.forEach(shape => {
+        ctx.save();
         ctx.fillStyle = shape.color;
-        drawShape(shape.x, shape.y, shape.size, 'circle', 0);
+        ctx.translate(shape.x, shape.y);
+        ctx.beginPath();
+        ctx.moveTo(0, -shape.size); // Top vertex
+        ctx.lineTo(shape.size, 0); // Right vertex
+        ctx.lineTo(0, shape.size); // Bottom vertex
+        ctx.lineTo(-shape.size, 0); // Left vertex
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
     });
 }
 
@@ -298,7 +430,7 @@ function startAudio() {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
-        audio = new Audio('/music/breathe.mp3');  // Replace with your file
+        audio = new Audio('/music/flema.mp3');  // Replace with your file
         audio.crossOrigin = 'anonymous';
 
         source = audioContext.createMediaElementSource(audio);
@@ -327,6 +459,20 @@ function startAudio() {
     });
 }
 
+function renderMoonAndStars() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw the moon
+    drawMoon(1); // Pass 1 to ensure full visibility
+
+    // Draw stars
+    drawStars();
+
+    // Draw bouncing shapes and letters
+    drawBouncingShapes();
+    drawLetters();
+}
+
 function onAudioEnded() {
     console.log('Audio has ended');
     isPlaying = false;
@@ -335,7 +481,7 @@ function onAudioEnded() {
     particles.length = 0;
 
     // Define the new message
-    const newMessage = "AND IN THE END ALL THATS LEFT IS DUST AND REGRETS";
+    const newMessage = "AND IN THE END ALL THAT REMAINS IS DUST AND REGRETS";
     const letterSize = 18;
     const letterSpacing = 18; // Adjust the spacing between letters if needed
     const messageWidth = newMessage.length * letterSpacing;
@@ -360,6 +506,83 @@ function onAudioEnded() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawBouncingShapes();
     drawLetters();
+
+    // Continue rendering the moon and stars
+    renderMoonAndStars();
+}
+
+
+function render() {
+    analyser.getByteFrequencyData(frequencyData);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const maxAmplitude = 255;
+    const amplitude = Math.max(...frequencyData);
+    const amplitudeRatio = amplitude / maxAmplitude;
+
+    // Calculate song progress
+    const songProgress = audio.currentTime / audio.duration;
+
+    // Create stars based on song progress
+    if (Math.random() < songProgress) {
+        createStar();
+    }
+
+    // Update and draw stars
+    updateStars(songProgress);
+    drawStars();
+
+    // Draw the moon
+    drawMoon(songProgress);
+
+    let speedMultiplier; // Adjust speed based on amplitude
+    let sizeMultiplier; // Adjust size based on amplitude
+    let creationAmount;
+    // Determine shape creation interval based on amplitude ratio
+    let shapeCreationInterval;
+    if (amplitudeRatio > 0.85) {
+        speedMultiplier = 5;
+        sizeMultiplier = 1.5;
+        creationAmount = 3;
+        shapeCreationInterval = 1; // High amplitude: create up to 2 shapes per frame
+        frameCounter++;
+    } else if (amplitudeRatio > 0.65) {
+        speedMultiplier = 3;
+        sizeMultiplier = 1;
+        creationAmount = 2;
+        shapeCreationInterval = 6; // Mid amplitude: create 1 shape every 4 frames
+        frameCounter++;
+    } else if (amplitudeRatio > 0.45) {
+        speedMultiplier = 1;
+        sizeMultiplier = 0.5;
+        creationAmount = 1;
+        shapeCreationInterval = 12; // Low amplitude: create 1 shape every 8 frames
+        frameCounter++;
+    }
+
+    // Create falling shapes based on the calculated interval
+    if (fallingShapes.length < MAX_FALLING_SHAPES && (frameCounter % shapeCreationInterval === 0)) {
+        for (let i = 0; i < creationAmount; i++) {
+            createFallingShape(speedMultiplier, sizeMultiplier, amplitudeRatio);
+        }
+        frameCounter = 0;
+    }
+
+    updateBars();
+    updateFallingShapes(speedMultiplier);
+    updateParticles();
+    updateLetters();
+    renderFallingShapes();
+    renderParticles();
+    updateBouncingShapes(amplitudeRatio); // Pass the amplitude ratio
+    drawBouncingShapes();
+    drawLetters();
+    renderBars();
+
+    if (isPlaying) {
+        animationFrameId = requestAnimationFrame(render);
+    } else {
+        renderMoonAndStars();
+    }
 }
 
 function pauseAudio() {
@@ -415,59 +638,6 @@ canvas.addEventListener('click', (event) => {
 let frameCounter = 0;
 
 
-function render() {
-    analyser.getByteFrequencyData(frequencyData);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const maxAmplitude = 255;
-    const amplitude = Math.max(...frequencyData);
-    const amplitudeRatio = amplitude / maxAmplitude;
-
-    let speedMultiplier; // Adjust speed based on amplitude
-    let sizeMultiplier; // Adjust size based on amplitude
-    let creationAmount;
-    // Determine shape creation interval based on amplitude ratio
-    let shapeCreationInterval;
-    if (amplitudeRatio > 0.85) {
-        speedMultiplier = 5;
-        sizeMultiplier = 1.5;
-        creationAmount = 3;
-        shapeCreationInterval = 1; // High amplitude: create up to 2 shapes per frame
-        frameCounter++;
-    } else if (amplitudeRatio > 0.65) {
-        speedMultiplier = 3;
-        sizeMultiplier = 1;
-        creationAmount = 2;
-        shapeCreationInterval = 6; // Mid amplitude: create 1 shape every 4 frames
-        frameCounter++;
-    } else if (amplitudeRatio > 0.45) {
-        speedMultiplier = 1;
-        sizeMultiplier = 0.5;
-        creationAmount = 1;
-        shapeCreationInterval = 12; // Low amplitude: create 1 shape every 8 frames
-        frameCounter++;
-    }
-
-    // Create falling shapes based on the calculated interval
-    if (fallingShapes.length < MAX_FALLING_SHAPES && (frameCounter % shapeCreationInterval === 0)) {
-        for (let i = 0; i < creationAmount; i++) {
-            createFallingShape(speedMultiplier, sizeMultiplier, amplitudeRatio);
-        }
-        frameCounter = 0;
-    }
-
-    updateBars();
-    updateFallingShapes(speedMultiplier);
-    updateParticles();
-    updateLetters();
-    renderFallingShapes();
-    renderParticles();
-    updateBouncingShapes(amplitudeRatio); // Pass the amplitude ratio
-    drawBouncingShapes();
-    drawLetters();
-    renderBars();
-
-    animationFrameId = requestAnimationFrame(render);
-}
 // Initial draw of bouncing shapes and letters
 drawBouncingShapes();
 drawLetters();
