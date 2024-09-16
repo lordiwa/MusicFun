@@ -268,6 +268,18 @@ function updateFallingShapes() {
                 fallingShapes.splice(index, 1); // Remove the shape on collision
             }
         });
+
+        // Check for collision with letters
+        letters.forEach(letter => {
+            const dx = shape.x - letter.x;
+            const dy = shape.y - letter.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < shape.size + letter.size / 2) {
+                createParticles(shape, Math.atan2(dy, dx)); // Create particles on collision
+                fallingShapes.splice(index, 1); // Remove the shape on collision
+            }
+        });
     });
 }
 
@@ -430,7 +442,7 @@ function startAudio() {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
-        audio = new Audio('/music/flema.mp3');  // Replace with your file
+        audio = new Audio('/music/breathe.mp3');  // Replace with your file
         audio.crossOrigin = 'anonymous';
 
         source = audioContext.createMediaElementSource(audio);
@@ -472,6 +484,34 @@ function renderMoonAndStars() {
     drawBouncingShapes();
     drawLetters();
 }
+let isFalling = false;
+function animateFalling() {
+    if (!isFalling) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Update moon position
+    if (moon.y + moon.size < canvas.height) {
+        moon.y += 2; // Adjust the falling speed as needed
+    }
+
+    // Update stars position
+    stars.forEach(star => {
+        if (star.y + star.size < canvas.height) {
+            star.y += 2; // Adjust the falling speed as needed
+        }
+    });
+
+    // Draw the moon and stars
+    drawMoon(1); // Pass 1 to ensure full visibility
+    drawStars();
+
+    // Draw bouncing shapes and letters
+    drawBouncingShapes();
+    drawLetters();
+
+    requestAnimationFrame(animateFalling);
+}
 
 function onAudioEnded() {
     console.log('Audio has ended');
@@ -482,7 +522,7 @@ function onAudioEnded() {
 
     // Define the new message
     const newMessage = "AND IN THE END ALL THAT REMAINS IS DUST AND REGRETS";
-    const letterSize = 18;
+    const letterSize = 24;
     const letterSpacing = 18; // Adjust the spacing between letters if needed
     const messageWidth = newMessage.length * letterSpacing;
     const startX = centerX - messageWidth / 2;
@@ -509,8 +549,13 @@ function onAudioEnded() {
 
     // Continue rendering the moon and stars
     renderMoonAndStars();
-}
 
+    // Start the falling animation after 3 seconds
+    setTimeout(() => {
+        isFalling = true;
+        animateFalling();
+    }, 3000);
+}
 
 function render() {
     analyser.getByteFrequencyData(frequencyData);
