@@ -229,7 +229,10 @@ function createParticles(parent, angle) {
         const speedX = Math.cos(angle) * (Math.random() * 2);
         const speedY = Math.sin(angle) * (Math.random() * 2);
 
-        particles.push({ x, y, size, color, speedX, speedY, life: 50 });
+        // Set a random life duration with a maximum of 100 (twice as long as before)
+        const life = Math.floor(Math.random() * 100) + 1;
+
+        particles.push({ x, y, size, color, speedX, speedY, life });
     }
 }
 
