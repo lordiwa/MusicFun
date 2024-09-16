@@ -41,9 +41,3 @@ You should see the WebGL audio visualizer running.
 - `main.js`: The main JavaScript file that contains the logic for the audio visualizer.
 - `styles.css`: (Optional) CSS file for additional styling.
 
-## License
-
-This project is licensed under the MIT License.
-```
-
-Replace `your-username` and `your-repo-name` with your actual GitHub username and repository name.
