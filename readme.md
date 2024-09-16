@@ -1,4 +1,4 @@
-```markdown
+
 # WebGL Audio Shader
 
 This project is a WebGL-based audio visualizer that displays various shapes and animations synchronized with the audio playback.
