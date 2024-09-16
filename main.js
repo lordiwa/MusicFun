@@ -445,7 +445,7 @@ function startAudio() {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
-        audio = new Audio('/music/breathe.mp3');  // Replace with your file
+        audio = new Audio('/music/queen.mp3');  // Replace with your file
         audio.crossOrigin = 'anonymous';
 
         source = audioContext.createMediaElementSource(audio);
