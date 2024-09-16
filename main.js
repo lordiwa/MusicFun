@@ -488,19 +488,24 @@ function renderMoonAndStars() {
     drawLetters();
 }
 let isFalling = false;
+let hasFallen = false;
+let redMoonAppearedTime = null;
+
 function animateFalling() {
     if (!isFalling) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Update moon position
-    if (moon.y + moon.size < canvas.height) {
+    if (moon.y + moon.size < canvas.height && !hasFallen) {
         moon.y += 2; // Adjust the falling speed as needed
+    } else {
+        hasFallen = true;
     }
 
     // Update stars position
     stars.forEach(star => {
-        if (star.y + star.size < canvas.height) {
+        if (star.y + star.size < canvas.height && !hasFallen) {
             star.y += 2; // Adjust the falling speed as needed
         }
     });
@@ -513,7 +518,80 @@ function animateFalling() {
     drawBouncingShapes();
     drawLetters();
 
+    if (hasFallen) {
+        if (!redMoonAppearedTime) {
+            redMoonAppearedTime = Date.now();
+        }
+        drawRedMoon();
+        if (Date.now() - redMoonAppearedTime > 2000) {
+            gravitateElementsTowardsCenter();
+        }
+    }
+
     requestAnimationFrame(animateFalling);
+}
+
+function gravitateElementsTowardsCenter() {
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const redMoonRadius = 100; // Adjust the size as needed
+
+    // Gravitate moon
+    const moonDx = centerX - moon.x;
+    const moonDy = centerY - moon.y;
+    const moonDistance = Math.sqrt(moonDx * moonDx + moonDy * moonDy);
+    if (moonDistance > redMoonRadius) {
+        moon.x += moonDx * 0.005; // Slower speed
+        moon.y += moonDy * 0.005; // Ensure y-axis movement
+    } else {
+        moon.x = centerX; // Stop movement
+        moon.y = centerY;
+    }
+
+    stars.forEach((star, index) => {
+        const starDx = centerX - star.x;
+        const starDy = centerY - star.y;
+        const starDistance = Math.sqrt(starDx * starDx + starDy * starDy);
+
+        if (starDistance > redMoonRadius) {
+            // Normalize the direction vector
+            const directionX = starDx / starDistance;
+            const directionY = starDy / starDistance;
+
+            // Apply random speed components to the normalized direction vector
+            star.x += directionX * star.speedX;
+            star.y += directionY * star.speedY;
+        } else {
+            stars.splice(index, 1); // Remove star
+        }
+    });
+
+    // Gravitate letters
+    letters.forEach((letter, index) => {
+        const letterDx = centerX - letter.x;
+        const letterDy = centerY - letter.y;
+        const letterDistance = Math.sqrt(letterDx * letterDx + letterDy * letterDy);
+        if (letterDistance > redMoonRadius) {
+            letter.x += letterDx * 0.005; // Slower speed
+            letter.y += letterDy * 0.005; // Ensure y-axis movement
+        } else {
+            letters.splice(index, 1); // Remove letter
+        }
+    });
+
+    // Check if all elements are removed
+    if (stars.length === 0 && letters.length === 0) {
+        setTimeout(() => {
+            isFalling = false; // Stop rendering
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+            drawRedMoon(); // Draw only the red moon
+        }, 10000);
+    } else {
+        if (Date.now() - redMoonAppearedTime > 5000) {
+            stars.length = 0;
+            letters.length = 0;
+        }
+    }
 }
 
 function onAudioEnded() {
@@ -557,7 +635,68 @@ function onAudioEnded() {
     setTimeout(() => {
         isFalling = true;
         animateFalling();
-    }, 3000);
+    }, 5000);
+
+    // Fade out the buttons
+    fadeOutButtons();
+}
+
+// Function to fade out the buttons
+function fadeOutButtons() {
+    let opacity = 1;
+    const fadeOutInterval = setInterval(() => {
+        opacity -= 0.05;
+        if (opacity <= 0) {
+            clearInterval(fadeOutInterval);
+            bouncingShapes = []; // Remove the buttons
+
+            // Start the falling animation after 3 seconds
+            setTimeout(() => {
+                isFalling = true;
+                animateFalling();
+            }, 3000);
+        } else {
+            bouncingShapes.forEach(shape => {
+                shape.opacity = opacity;
+            });
+        }
+    }, 50);
+}
+
+// Function to draw a red moon in the middle of the canvas
+function drawRedMoon() {
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const redMoonRadius = 100; // Adjust the size as needed
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.8)'; // Red color with some transparency
+    ctx.shadowColor = 'rgba(187,143,143,0.8)';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, redMoonRadius, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Generate and draw craters
+    const numCraters = Math.floor(redMoonRadius / 5) + 50; // Increase the number of craters
+    for (let i = 0; i < numCraters; i++) {
+        const craterX = (Math.random() - 0.5) * redMoonRadius * 2;
+        const craterY = (Math.random() - 0.5) * redMoonRadius * 2;
+        const craterSize = Math.random() * redMoonRadius * 0.5; // Increase crater size
+
+        // Ensure the crater is within the moon's boundary
+        if (Math.sqrt(craterX ** 2 + craterY ** 2) + craterSize <= redMoonRadius) {
+            ctx.fillStyle = 'rgba(200, 0, 0, 0.8)';
+            drawAmorphousSpot(centerX + craterX, centerY + craterY, craterSize);
+
+            // Draw the darker center spot
+            ctx.fillStyle = 'rgba(150, 0, 0, 0.8)';
+            drawAmorphousSpot(centerX + craterX, centerY + craterY, craterSize * 0.5);
+        }
+    }
+
+    ctx.restore();
 }
 
 function render() {
