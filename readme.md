@@ -17,7 +17,7 @@ npm install -g http-server
 1. Clone the repository to your local machine:
 
 ```bash
-git clone https://github.com/your-username/your-repo-name.git
+git clone https://github.com/lordiwa/MusicFun.git
 cd your-repo-name
 ```
 
